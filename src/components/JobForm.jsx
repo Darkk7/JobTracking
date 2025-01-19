@@ -6,6 +6,7 @@ function JobForm() {
   const [clientName, setClientName] = useState('');
   const [message, setMessage] = useState('');
   const [jobs, setJobs] = useState([]);  // State to hold the list of jobs
+  const [editingJob, setEditingJob] = useState(null);  // State to track the job being edited
 
   // Fetch jobs when the component mounts
   useEffect(() => {
@@ -26,31 +27,41 @@ function JobForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    // Insert the data into your Supabase table
-    const { data, error } = await supabase
-      .from('jobs_closed')
-      .insert([{ jobNumber: jobNumber, clientName: clientName }]);
-  
-    if (error) {
-      console.error('Error inserting data:', error.message);
-      setMessage('Error adding job. Please try again.');
-    } else {
-      console.log('Data inserted:', data);
-  
-      // Check if data is an array before updating state
-      if (Array.isArray(data)) {
-        setJobs((prevJobs) => [...prevJobs, ...data]);  // Add the new job to the jobs list
+
+    if (editingJob) {
+      // Update the existing job in Supabase
+      const { data, error } = await supabase
+        .from('jobs_closed')
+        .update({ jobNumber: jobNumber, clientName: clientName })
+        .match({ id: editingJob.id });
+
+      if (error) {
+        console.error('Error updating job:', error.message);
+        setMessage('Error updating job. Please try again.');
       } else {
-        // Handle the case where data is not an array (e.g., if it's an object or null)
-        console.error('Data is not iterable:', data);
-        setMessage('Error adding job. Please try again.');
+        setJobs((prevJobs) =>
+          prevJobs.map((job) =>
+            job.id === editingJob.id ? { ...job, jobNumber, clientName } : job
+          )
+        );
+        setMessage('Job updated successfully!');
       }
-      
-      setMessage('Job added successfully!');
+      setEditingJob(null);  // Reset editing state
+    } else {
+      // Insert the data into your Supabase table (new job)
+      const { data, error } = await supabase
+        .from('jobs_closed')
+        .insert([{ jobNumber: jobNumber, clientName: clientName }]);
+
+      if (error) {
+        console.error('Error inserting data:', error.message);
+        setMessage('Error adding job. Please try again.');
+      } else {
+        setJobs((prevJobs) => [...prevJobs, ...data]);
+        setMessage('Job added successfully!');
+      }
     }
-  
-    // Clear the input fields
+
     setJobNumber('');
     setClientName('');
   };
@@ -66,15 +77,20 @@ function JobForm() {
       console.error('Error deleting job:', error.message);
       setMessage('Error deleting job. Please try again.');
     } else {
-      // Remove the job from the state (UI)
       setJobs((prevJobs) => prevJobs.filter((job) => job.id !== id));
       setMessage('Job deleted successfully!');
     }
   };
 
+  const handleEdit = (job) => {
+    setEditingJob(job);
+    setJobNumber(job.jobNumber);
+    setClientName(job.clientName);
+  };
+
   return (
     <div style={styles.container}>
-      <h2>Add Job</h2>
+      <h2>{editingJob ? 'Edit Job' : 'Add Job'}</h2>
       <form onSubmit={handleSubmit} style={styles.form}>
         <label style={styles.label}>
           Job Number:
@@ -98,7 +114,9 @@ function JobForm() {
             required
           />
         </label>
-        <button type="submit" style={styles.button}>Submit</button>
+        <button type="submit" style={styles.button}>
+          {editingJob ? 'Update' : 'Submit'}
+        </button>
       </form>
       {message && <p style={styles.message}>{message}</p>}
 
@@ -109,6 +127,7 @@ function JobForm() {
           <tr>
             <th>Job Number</th>
             <th>Client Name</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -118,10 +137,16 @@ function JobForm() {
               <td>{job.clientName}</td>
               <td>
                 <button
-                    onClick={() => handleDelete(job.id)}
-                    style={styles.deleteButton}
-                    >
-                    Delete
+                  onClick={() => handleEdit(job)}
+                  style={styles.editButton}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(job.id)}
+                  style={styles.deleteButton}
+                >
+                  Delete
                 </button>
               </td>
             </tr>
@@ -188,6 +213,23 @@ const styles = {
   td: {
     padding: '10px',
     border: '1px solid #ccc',
+  },
+  editButton: {
+    padding: '5px 10px',
+    backgroundColor: '#FFC107',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginRight: '10px',
+  },
+  deleteButton: {
+    padding: '5px 10px',
+    backgroundColor: '#DC3545',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
   },
 };
 
