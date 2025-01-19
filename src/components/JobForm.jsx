@@ -35,6 +35,52 @@ function JobForm() {
     fetchJobs();
   }, []);  // Empty dependency array to run only once when the component mounts
 
+  const handleDeleteAll = async () => {
+    const batchSize = 100;  // Number of records to delete in each batch
+    let currentOffset = 0;
+    let totalDeleted = 0;
+    let errorMessage = '';
+  
+    setMessage('');  // Clear any previous message
+  
+    // Get the total count of jobs
+    const { count, error: countError } = await supabase
+      .from('jobs_closed')
+      .select('id', { count: 'exact' });
+  
+    if (countError) {
+      console.error('Error fetching total job count:', countError);
+      setMessage('Error fetching total job count');
+      return;
+    }
+  
+    while (currentOffset < count) {
+      // Delete records in batches
+      const { error } = await supabase
+        .from('jobs_closed')
+        .delete()
+        .order('id', { ascending: true })  // Ensure a consistent order by id
+        .range(currentOffset, currentOffset + batchSize - 1); // Deleting batch
+      
+      if (error) {
+        console.error('Error deleting batch:', error);
+        errorMessage = `Error deleting batch: ${error.message}`;
+        break;
+      }
+  
+      totalDeleted += batchSize;  // Increment the total number of deleted jobs
+      currentOffset += batchSize;  // Move to the next batch
+    }
+  
+    if (!errorMessage) {
+      setJobs([]);  // Clear jobs from state
+      setMessage(`All records deleted successfully!`);
+    } else {
+      setMessage(errorMessage);  // Display the error if something went wrong
+    }
+  };
+  
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -163,7 +209,7 @@ function JobForm() {
           alt="Logo"
           style={styles.logo}
         />
-        
+        <h3>Once job has been added, <u>Refresh</u> the page to see it in the Job List table at the bottom</h3>
         <h2 style={styles.title}><u>{editingJob ? 'Edit Job' : 'Job Tracking'}</u></h2>
         <form onSubmit={handleSubmit} style={styles.form}>
           <label style={styles.label}>
@@ -238,7 +284,17 @@ function JobForm() {
 
         {/* Print Button */}
         <button onClick={handlePrint} style={styles.printButton}>
-          Print Job List
+        Print Job List
+        </button>
+
+        {/* Refresh Button */}
+        <button onClick={() => window.location.reload()} style={{ backgroundColor: '#FFBF00', color: 'white', padding: '10px 20px', border: 'none', cursor: 'pointer', borderRadius: '5px', marginTop: '20px', width: '80%' }}>
+        Refresh
+        </button>
+
+        {/* Delete All Records Button */}
+        <button onClick={handleDeleteAll} style={{ backgroundColor: '#F44336', color: 'white', padding: '10px 20px', border: 'none', cursor: 'pointer', borderRadius: '5px', marginTop: '20px', width: '80%' }}>
+        Delete All Records
         </button>
       </div>
 
