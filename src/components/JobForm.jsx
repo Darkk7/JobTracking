@@ -231,7 +231,7 @@ function JobForm() {
           alt="Logo"
           style={styles.logo}
         />
-        <h3>Once job has been added, <u>Refresh</u> the page to see it in the Job List table at the bottom</h3>
+        <h3>Once job has been added, <u>click 'Refresh Jobs' button</u> to see it in the Job List table at the bottom</h3>
         <h2 style={styles.title}><u>{editingJob ? 'Edit Job' : 'Job Tracking'}</u></h2>
         <form onSubmit={handleSubmit} style={styles.form}>
           <label style={styles.label}>
